@@ -23,9 +23,9 @@ set(groot,'defaultLegendInterpreter','latex');
 addpath(genpath('src'));
 
 %% Nominal SISO System \bar{\Sigma}
-A1 = -1;
-B1 = 1;
-C1 = 1;
+A1 = [-1];
+B1 = [1];
+C1 = [1];
 D1 = 0;
 sys1 = ss(A1, B1, C1, D1);
 [num1, den1] = tfdata(tf(sys1), 'v');
@@ -96,7 +96,20 @@ gapValues = gapValues(~isnan(gapValues));
 thetaNorms = thetaNorms(1:length(gapValues));
 TzwValues = TzwValues(1:length(gapValues));
 
-% Probability Curve for H-infinity satisfaction
+%% Plot Gap vs Theta Norm
+figure;
+scatter(thetaNorms, gapValues, 80, 'filled');
+xlabel('$||\theta - \theta_0||$', 'Interpreter', 'latex');
+ylabel('$\delta_{g}(\bar{\Sigma}, \tilde{\Sigma}(\theta))$', 'Interpreter', 'latex');
+grid on;
+a = findobj(gcf, 'type', 'axes');
+h = findobj(gcf, 'type', 'line');
+set(h, 'linewidth', 5);
+set(a, 'linewidth', 5);
+set(a, 'FontSize', 70);
+set(gca,'fontweight','bold');
+
+%% Probability Curve for H-infinity satisfaction
 % Set the gamma range
 gammaValues = linspace(1.01, 3.0, 100);
 % Estimate Lipschitz constant of gap as Gap/theta_norm
@@ -110,6 +123,18 @@ for i = 1:length(gammaValues)
     upperBoundProbability(i) = 1 - exp(-(gammaBar^2)/(2*L_gap^2*sigma^2));
 end
 
+figure;
+plot(gammaValues, upperBoundProbability, 'LineWidth', 2);
+xlabel('$\gamma$', 'Interpreter', 'latex');
+ylabel('$P(||T_{zw}(\tilde{\Sigma}(\theta), C)||_{\mathcal{H}_{\infty}} \leq \gamma)$', 'Interpreter', 'latex');
+grid on;
+a = findobj(gcf, 'type', 'axes');
+h = findobj(gcf, 'type', 'line');
+set(h, 'linewidth', 5);
+set(a, 'linewidth', 5);
+set(a, 'FontSize', 70);
+set(gca,'fontweight','bold');
+
 %% Summary
 fprintf('--- Summary ---\n');
 fprintf('Estimated C: %.4f\n', L_gap);
@@ -122,35 +147,8 @@ fprintf('L_gap * E[theta_norms]: %.4f\n', expectedGapUpperBound);
 if(expectedGap <= expectedGapUpperBound)
     fprintf('E[Gap] <= L_gap*E[theta_norms]. So, Lemma 4 is satisfied \n');
 else
-    fprintf('E[Gap] > L_gap*E[theta_norms]. So, Lemma 4 not satisfied \n');
+    fprintf('E[Gap] > L_gap*E[theta_norms]. So, Lemma 4 is not satisfied \n');
 end
 % Compute & report the expected Hinf norm of T_zw transfer function
 expectedTzwHinfNorm = mean(TzwValues);
 fprintf('E[||T_{zw}(P2, C)||_inf]: %.4f\n', expectedTzwHinfNorm);
-
-%% Plotting Code
-% Plot Gap vs Theta Norm
-figure;
-scatter(thetaNorms, gapValues, 80, 'filled');
-xlabel('$||\theta - \theta_0||$', 'Interpreter', 'latex');
-ylabel('$\delta_{g}(\bar{\Sigma}, \tilde{\Sigma}(\theta))$', 'Interpreter', 'latex');
-grid on;
-a = findobj(gcf, 'type', 'axes');
-h = findobj(gcf, 'type', 'line');
-set(h, 'linewidth', 5);
-set(a, 'linewidth', 5);
-set(a, 'FontSize', 70);
-set(gca,'fontweight','bold');
-
-% Plot gamma vs upperBoundProbability
-figure;
-plot(gammaValues, upperBoundProbability, 'LineWidth', 2);
-xlabel('$\gamma$', 'Interpreter', 'latex');
-ylabel('$P(||T_{zw}(\tilde{\Sigma}(\theta), C)||_{\mathcal{H}_{\infty}} \leq \gamma)$', 'Interpreter', 'latex');
-grid on;
-a = findobj(gcf, 'type', 'axes');
-h = findobj(gcf, 'type', 'line');
-set(h, 'linewidth', 5);
-set(a, 'linewidth', 5);
-set(a, 'FontSize', 70);
-set(gca,'fontweight','bold');

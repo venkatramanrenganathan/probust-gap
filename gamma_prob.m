@@ -7,7 +7,7 @@ addpath(genpath('src'));
 % Parameters
 b_PC = 0.8;           % nominal performance
 C_delta = 0.5;        % Lipschitz constant
-gamma = linspace(b_PC + 0.01, 10.0, 300);  % performance threshold
+gamma = linspace(1.01, 3.0, 100);  % performance threshold
 
 % Compute delta_bar and probability
 delta_bar = (gamma - b_PC) ./ (1 + gamma);
