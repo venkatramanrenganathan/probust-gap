@@ -33,7 +33,8 @@ sys1 = ss(A1, B1, C1, D1);
 % Prepare Nominal "Graph" operator foor normalized RCF
 G1 = [num1, den1]';
 G1 = G1 / norm(G1, 'fro');
-Pi_G1 = G1 * ((G1' * G1) \ G1');   % Projection matrix
+% Pi_G1 = G1 * ((G1' * G1) \ G1');   % Projection matrix
+Pi_G1 = G1 * G1';   % Projection matrix
 Pi_G1_perp = eye(size(Pi_G1)) - Pi_G1;
 
 %% Parameters for Simulation
@@ -74,7 +75,9 @@ for i = 1:numSamples
     G2 = G2 / norm(G2, 'fro');
 
     % Compute gap as \norm{Pi_G1_perp * G2}
-    gapValues(i) = norm(Pi_G1_perp * G2, 2);
+    % gapValues(i) = norm(Pi_G1_perp * G2, 2);
+    % Compare with Matlab inbuilt gapmetric command
+    [gapValues(i),~] = gapmetric(tf(sys1),tf(sys2));
     % Compute the norm of theta variations from mean
     thetaNorms(i) = norm(theta - barTheta);
 
@@ -112,7 +115,7 @@ end
 
 %% Summary
 fprintf('--- Summary ---\n');
-fprintf('Estimated C: %.4f\n', L_gap);
+fprintf('Estimated L_gap: %.4f\n', L_gap);
 % Compute & report the expected gap
 expectedGap = mean(gapValues);
 fprintf('E[Gap]: %.4f\n', expectedGap);
