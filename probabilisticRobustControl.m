@@ -53,13 +53,13 @@ gapValues = zeros(numSamples,1);
 thetaNorms = zeros(numSamples,1);
 TzwValues = zeros(numSamples,1);
 
-% Do Monte-Carlo Simulation with \theta samples
+% Do Monte-Carlo Simulation with all \theta samples
 for i = 1:numSamples
     
     % Get the ith \theta sample
     theta = thetaSamples(i,:)';
 
-    % Form Perturbed System \tilde{\Sigma}(theta) using \theta
+    % Form ith Perturbed System \tilde{\Sigma}(theta) using \theta
     A2 = -1 + theta(1);
     C2 = 1 + theta(2);
     sys2 = ss(A2, B1, C2, D1);
@@ -96,7 +96,7 @@ gapValues = gapValues(~isnan(gapValues));
 thetaNorms = thetaNorms(1:length(gapValues));
 TzwValues = TzwValues(1:length(gapValues));
 
-% Probability Curve for H-infinity satisfaction
+% Computing Bound on Probability of H-infinity satisfaction
 % Set the gamma range
 gammaValues = linspace(1.01, 3.0, 100);
 % Estimate Lipschitz constant of gap as Gap/theta_norm
