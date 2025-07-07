@@ -1,18 +1,42 @@
-% Scenario-Based Gap Robustness Numerical Illustration
-clear; clc;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% This code simulates Scenario-Based Gap Robustness Numerical Illustration
+%
+% Copyrights Authors: Venkatraman Renganathan 
+%                     Cranfield University, United Kingdom.
+%
+% Emails: v.renganathan@cranfield.ac.uk
+%
+% Date last updated: 7 July, 2025.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+% Make a fresh start
+clear; close all; clc;
+
+% set properties for plotting
+set(groot,'defaultAxesTickLabelInterpreter','latex');  
+set(groot,'defaulttextinterpreter','latex');
+set(groot,'defaultLegendInterpreter','latex');
+addpath(genpath('src'));
 
 % Nominal system P
 s = tf('s');
 P = 1/(s+1);
 C = 1; % Controller stabilizing nominal system
+sen = 1/(1+P*C);
+CompSenNorm = norm(1-sen,inf);
 
 % Gap robustness margin (approximate)
-b_PC = 0.6; % assumed known from design
+b_PC = norm(1-sen,inf); % assumed known from design 0.6
 
 % Parameters
 d = 2; % dimension
 theta0 = zeros(d,1);
-L = 1.0; % gap Lipschitz constant
+L = 0.5; % gap Lipschitz constant
 sigma = 0.1;
 N = 1000; % Number of scenarios
 epsilon = 0.05; % violation probability
@@ -48,10 +72,17 @@ end
 
 % Plot scenario gap values
 figure;
-histogram(gap_vals,30,'Normalization','pdf');
-xline(alpha_hat,'r','LineWidth',2,'Label','Scenario max gap');
-xline(b_PC,'g','LineWidth',2,'Label','Robustness margin b_{PC}');
-title('Scenario-Based Gap Robustness');
-xlabel('Gap Metric Values');
+histogram(gap_vals,30,'Normalization','probability');
+xline(alpha_hat,'r','LineWidth',5);
+xline(b_PC,'k','LineWidth',5);
+xlabel('Gap');
 ylabel('Probability Density');
-legend('Scenario Gap Distribution','Scenario Max Gap','Robustness Margin');
+xlim([0, 1]);
+legend('Scenario $\mathbf{f}_{gap}$','$\hat{\alpha}_{N}$','$b_{\bar{\Sigma}, \bar{C}}$');
+grid on;
+a = findobj(gcf, 'type', 'axes');
+h = findobj(gcf, 'type', 'line');
+set(h, 'linewidth', 5);
+set(a, 'linewidth', 5);
+set(a, 'FontSize', 50);
+set(gca,'fontweight','bold');

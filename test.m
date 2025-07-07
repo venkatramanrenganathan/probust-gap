@@ -1,8 +1,9 @@
-a = 0.95;
-e = 0.1;
-if(e <= a)
-    LHS = (a+e)/(1-e)
-    RHS = (1.75/(1.01-a)) + e
+barB = 0.9;
+gap = 0.2;
+LHS = (barB+gap)/(1-gap)
+RHS = exp(7*gap)*barB
+if(LHS <= RHS)
+    fprintf('Correct Choice \n ');
 else
-    fprintf('Wrong Choice');
+    fprintf('Wrong Choice \n ');
 end

@@ -8,7 +8,7 @@
 %
 % Emails: v.renganathan@cranfield.ac.uk
 %
-% Date last updated: 27 June, 2025.
+% Date last updated: 7 July, 2025.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -41,13 +41,13 @@ Pi_G1_perp = eye(size(Pi_G1)) - Pi_G1;
 % Set the performance measure for nominal plant and controller
 b_PC = 0.8;
 % Set the standard deviation for \theta parameter
-sigma = 0.5;
+sigmaTheta = 0.5;
 % Set the number of samples of \theta for Monte-Carlo simulation
 numSamples = 1000;
 % Mean of \theta
 barTheta = [0.1; -0.05];
 % Sample \theta from Gaussian distribution
-thetaSamples = mvnrnd(barTheta', sigma^(2)*eye(2), numSamples);
+thetaSamples = mvnrnd(barTheta', sigmaTheta^(2)*eye(2), numSamples);
 
 % Place holders 
 gapValues = zeros(numSamples,1);
@@ -110,7 +110,7 @@ upperBoundProbability = zeros(size(gammaValues));
 for i = 1:length(gammaValues)
     gammaBar = (gammaValues(i) - b_PC) / (1 + gammaValues(i));
     % Find Upper bound for Prob(\norm{T_zw}_{\infty} \leq \gamma)
-    upperBoundProbability(i) = 1 - exp(-(gammaBar^2)/(2*L_gap^2*sigma^2));
+    upperBoundProbability(i) = 1 - exp(-(gammaBar^2)/(2*L_gap^2*sigmaTheta^2));
 end
 
 %% Summary
@@ -130,6 +130,12 @@ end
 % Compute & report the expected Hinf norm of T_zw transfer function
 expectedTzwHinfNorm = mean(TzwValues);
 fprintf('E[||T_{zw}(P2, C)||_inf]: %.4f\n', expectedTzwHinfNorm);
+
+% Compute & report the upper bound on expected Hinf norm of T_zw transfer function
+CinvGap = (1/(1-expectedGapUpperBound))*(1+expectedGapUpperBound + 8 * sigmaTheta^(2) * L_gap^(2) * exp(-(1-expectedGapUpperBound)^(2)/(8 * sigmaTheta^(2) * L_gap^(2) )));
+expectedTzwHinfNormUpperBound = (b_PC + 1) * CinvGap;
+fprintf('Upper Bound on E[||T_{zw}(P2, C)||_inf]: %.4f\n', expectedTzwHinfNormUpperBound);
+
 
 %% Plotting Code
 % Plot Gap vs Theta Norm
