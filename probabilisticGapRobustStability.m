@@ -1,19 +1,18 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% This code simulates Scenario-Based Gap Robustness Numerical Illustration
+% This code simulates gap metric between state-space systems under 
+% random parameter θ with simpler nominal model
 %
 % Copyrights Authors: Venkatraman Renganathan 
 %                     Cranfield University, United Kingdom.
 %
 % Emails: v.renganathan@cranfield.ac.uk
 %
-% Date last updated: 7 July, 2025.
+% Date last updated: 9 July, 2025.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% gap_certification_simple_gap.m
-% Simulate gap metric between state-space systems under random θ with simpler nominal model
 
 % Make a fresh start
 clear; close all; clc;
@@ -24,50 +23,50 @@ set(groot,'defaulttextinterpreter','latex');
 set(groot,'defaultLegendInterpreter','latex');
 addpath(genpath('src'));
 
-% ------------------------
 % Nominal system: simple stable first-order system
-% ------------------------
 A = -1;
 B = 1;
 C = 1;
 D = 0;
 
-P_nom = ss(A, B, C, D);
+% Form transfer function from state space of nominal model
+P_nom = tf(ss(A, B, C, D));
 
-% ------------------------
 % Simulation parameters
-% ------------------------
 p = 1;                          % One-dimensional θ
-mu_theta = 0.0;                 % Nominal parameter
-sigma_theta = 0.25;
 N = 1000;                       % Number of samples
+mu_theta = 0.0;                 % Mean of θ
+sigma_theta = 0.25;             % Standard Deviation of θ
+
+% Place holder for storing gap and theta values
 gap_values = zeros(1, N);
 theta_norms = zeros(1, N);
-% ------------------------
-% Gap computation loop
-% ------------------------
+
+% Compute gap for all N samples
 for i = 1:N
+
+    % Sample a θ from Gaussian distribution
     theta = normrnd(mu_theta, sigma_theta);
 
-    % Perturb the A matrix slightly (ensure stability)
+    % Perturb the A matrix (ensure stability)
     A_pert = A + theta;        % Small perturbation around stable pole
-    if A_pert >= 0              % skip unstable systems
+    if A_pert >= 0             % skip unstable systems
         gap_values(i) = NaN;
         continue;
     end
 
-    P_theta = ss(A_pert, B, C, D);
+    % Form the tranfer function from state space of the perturbed model
+    P_theta = tf(ss(A_pert, B, C, D));
 
     try
-        % Compare with Matlab inbuilt gapmetric command
-        [g,~] = gapmetric(tf(P_nom),tf(P_theta));
-        % g = nugap(tf(P_nom), tf(P_theta));
-        theta_norms(i) = norm(theta);
+        % Compute gap with Matlab inbuilt gapmetric command
+        [gap_values(i),~] = gapmetric(P_nom, P_theta);
     catch
-        g = NaN;
+        gap_values(i) = NaN;
     end
+    % Store the theta values
+    theta_norms(i) = norm(theta);
 
-    gap_values(i) = g;
 end
 
 % Remove NaNs
@@ -82,28 +81,29 @@ theta_norms = theta_norms(1:N_valid);
 expected_gap = mean(gap_values);
 % Estimate Lipschitz constant of gap as Gap/theta_norm
 L_gap_est = mean(gap_values ./ theta_norms);
-sigma_gap = L_gap_est * sigma_theta;
 
-C = 1; % Controller stabilizing nominal system
-P_nom_tf = tf(P_nom);
-sen = 1/(1+P_nom_tf*C);
+% sub-Gaussian variance prixy of Gap(θ)
+sigma_gap = L_gap_est * sigma_theta;
+% Controller stabilizing nominal system (already stable)
+C = 1; 
+% Form Sensitivity & Complementary sensitivity transfer functions
+sen = 1/(1+P_nom*C);
 b_PC = norm(1-sen,inf);
 
-% b_PC = mu_gap + 0.05;
+% Compute the tolerance
 epsilon = b_PC - expected_gap;
+% Compute Empirical P[Gap < b_PC]
+empiricalSatisfactionProbability = mean(gap_values < b_PC);
+% Compute Theoretical Lower Bound on P[Gap < b_PC]
+theoreticalLowerBound = 1 - exp(-epsilon^2 / (2 * sigma_gap^2));
 
-empirical_prob = mean(gap_values < b_PC);
-theoretical_bound = 1 - exp(-epsilon^2 / (2 * sigma_gap^2));
-
-% ------------------------
 % Display summary
-% ------------------------
-fprintf('\n--- Simple Gap Metric Simulation ---\n');
+fprintf('\n--- Summary of Simulation Results ---\n');
 fprintf('Valid Samples:                    %d\n', N_valid);
 fprintf('Expected[Gap]:                    %.4f\n', expected_gap);
 fprintf('Robust Stability Margin b_PC:     %.4f\n', b_PC);
-fprintf('Empirical P[Gap < b_PC]:          %.4f\n', empirical_prob);
-fprintf('Theoretical Lower Bound:          %.4f\n', theoretical_bound);
+fprintf('Empirical P[Gap < b_PC]:          %.4f\n', empiricalSatisfactionProbability);
+fprintf('Theoretical Lower Bound:          %.4f\n', theoreticalLowerBound);
 
 % ------------------------
 %% Plot

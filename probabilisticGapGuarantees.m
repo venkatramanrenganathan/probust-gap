@@ -8,7 +8,7 @@
 %
 % Emails: v.renganathan@cranfield.ac.uk
 %
-% Date last updated: 7 July, 2025.
+% Date last updated: 9 July, 2025.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -27,32 +27,29 @@ A1 = -1;
 B1 = 1;
 C1 = 1;
 D1 = 0;
-sys1 = ss(A1, B1, C1, D1);
-[num1, den1] = tfdata(tf(sys1), 'v');
+nominalSystem = tf(ss(A1, B1, C1, D1));
 
-% Prepare Nominal "Graph" operator foor normalized RCF
-G1 = [num1, den1]';
-G1 = G1 / norm(G1, 'fro');
-% Pi_G1 = G1 * ((G1' * G1) \ G1');   % Projection matrix
-Pi_G1 = G1 * G1';   % Projection matrix
-Pi_G1_perp = eye(size(Pi_G1)) - Pi_G1;
+% Set the desired closed loop pole location
+desiredPoleLocation = -2;
+% Place the pole at desiredPoleLocation & get nominal controller gain
+barC = place(A1, B1, desiredPoleLocation);
 
 %% Parameters for Simulation
 % Set the performance measure for nominal plant and controller
-b_PC = 0.8;
-% Set the standard deviation for \theta parameter
-sigmaTheta = 0.5;
+bPC_Nominal = 0.8;
 % Set the number of samples of \theta for Monte-Carlo simulation
 numSamples = 1000;
 % Mean of \theta
-barTheta = [0.1; -0.05];
+muTheta = [0.1; -0.05];
+% Set the standard deviation for \theta parameter
+sigmaTheta = 0.5;
 % Sample \theta from Gaussian distribution
-thetaSamples = mvnrnd(barTheta', sigmaTheta^(2)*eye(2), numSamples);
+thetaSamples = mvnrnd(muTheta', sigmaTheta^(2)*eye(2), numSamples);
 
-% Place holders 
+% Place holders for storing computed values
 gapValues = zeros(numSamples,1);
 thetaNorms = zeros(numSamples,1);
-TzwValues = zeros(numSamples,1);
+hInftyNormValues = zeros(numSamples,1);
 
 % Do Monte-Carlo Simulation with all \theta samples
 for i = 1:numSamples
@@ -63,58 +60,42 @@ for i = 1:numSamples
     % Form ith Perturbed System \tilde{\Sigma}(theta) using \theta
     A2 = -1 + theta(1);
     C2 = 1 + theta(2);
-    sys2 = ss(A2, B1, C2, D1);
-    [num2, den2] = tfdata(tf(sys2), 'v');
-    G2 = [num2, den2]';
-    % If Frobenius norm of G2 is 0, then Gap is undefined
-    if norm(G2, 'fro') == 0
-        gapValues(i) = NaN;
-        continue;
-    end
-    % Normalize it
-    G2 = G2 / norm(G2, 'fro');
-
-    % Compute gap as \norm{Pi_G1_perp * G2}
-    % gapValues(i) = norm(Pi_G1_perp * G2, 2);
-    % Compare with Matlab inbuilt gapmetric command
-    [gapValues(i),~] = gapmetric(tf(sys1),tf(sys2));
+    perturbedSystem = tf(ss(A2, B1, C2, D1));
+    
+    % Compute gap with Matlab inbuilt command
+    [gapValues(i), ~] = gapmetric(nominalSystem, perturbedSystem);
     % Compute the norm of theta variations from mean
-    thetaNorms(i) = norm(theta - barTheta);
-
-    % Compute H-infinity norm of Closed-loop TF
-    % Set the desired closed loop pole location
-    desiredPoleLocation = -2;
-    % Place the pole at desiredPoleLocation & get nominal controller gain
-    barC = place(A1, B1, desiredPoleLocation);
+    thetaNorms(i) = norm(theta - muTheta);
+    
     % Form the closed loop matrix A - BK
     Acl = A2 - B1 * barC;
     % Form the closed loop state space
-    sys_cl = ss(Acl, 1, 1, 0);
-    % Compute the Hinfty norm
-    TzwValues(i) = norm(sys_cl, Inf);
+    closedLoopSystem = ss(Acl, 1, 1, 0);
+    % Compute H-infinity norm of Closed-loop TF
+    hInftyNormValues(i) = hinfnorm(closedLoopSystem);
 end
 
 % Remove NaN entries
 gapValues = gapValues(~isnan(gapValues));
 thetaNorms = thetaNorms(1:length(gapValues));
-TzwValues = TzwValues(1:length(gapValues));
+hInftyNormValues = hInftyNormValues(1:length(gapValues));
 
 % Computing Bound on Probability of H-infinity satisfaction
 % Set the gamma range
-gammaValues = linspace(1.01, 3.0, 100);
+gammaValues = linspace(1.01, 10.0, 100);
 % Estimate Lipschitz constant of gap as Gap/theta_norm
 L_gap = mean(gapValues ./ thetaNorms);
 % Placeholder for Upper bound of Prob(\norm{T_zw}_{\infty} \leq \gamma)
 upperBoundProbability = zeros(size(gammaValues));
 % For every gamma, find the upperBoundProbability
 for i = 1:length(gammaValues)
-    gammaBar = (gammaValues(i) - b_PC) / (1 + gammaValues(i));
+    gammaBar = (gammaValues(i) - bPC_Nominal) / (1 + gammaValues(i));
     % Find Upper bound for Prob(\norm{T_zw}_{\infty} \leq \gamma)
     upperBoundProbability(i) = 1 - exp(-(gammaBar^2)/(2*L_gap^2*sigmaTheta^2));
 end
 
-%% Summary
-fprintf('--- Summary ---\n');
+%% Print the Summary of Results
+fprintf('--- Printing the Summary of Results ---\n');
 fprintf('Estimated L_gap: %.4f\n', L_gap);
 % Compute & report the expected gap
 expectedGap = mean(gapValues);
@@ -123,26 +104,26 @@ fprintf('E[Gap]: %.4f\n', expectedGap);
 expectedGapUpperBound = L_gap * mean(thetaNorms);
 fprintf('L_gap * E[theta_norms]: %.4f\n', expectedGapUpperBound);
 if(expectedGap <= expectedGapUpperBound)
-    fprintf('E[Gap] <= L_gap*E[theta_norms]. So, Lemma 4 is satisfied \n');
+    fprintf('E[Gap] <= L_gap*E[theta_norms] \n');
 else
-    fprintf('E[Gap] > L_gap*E[theta_norms]. So, Lemma 4 not satisfied \n');
+    fprintf('E[Gap] > L_gap*E[theta_norms] \n');
 end
 % Compute & report the expected Hinf norm of T_zw transfer function
-expectedTzwHinfNorm = mean(TzwValues);
+expectedTzwHinfNorm = mean(hInftyNormValues);
 fprintf('E[||T_{zw}(P2, C)||_inf]: %.4f\n', expectedTzwHinfNorm);
 
 % Compute & report the upper bound on expected Hinf norm of T_zw transfer function
 CinvGap = (1/(1-expectedGapUpperBound))*(1+expectedGapUpperBound + 8 * sigmaTheta^(2) * L_gap^(2) * exp(-(1-expectedGapUpperBound)^(2)/(8 * sigmaTheta^(2) * L_gap^(2) )));
-expectedTzwHinfNormUpperBound = (b_PC + 1) * CinvGap;
+expectedTzwHinfNormUpperBound = (bPC_Nominal + 1) * CinvGap;
 fprintf('Upper Bound on E[||T_{zw}(P2, C)||_inf]: %.4f\n', expectedTzwHinfNormUpperBound);
 
 
 %% Plotting Code
 % Plot Gap vs Theta Norm
 figure;
-scatter(thetaNorms, gapValues, 80, 'filled');
-xlabel('$||\theta - \theta_0||$', 'Interpreter', 'latex');
-ylabel('$\delta_{g}(\bar{\Sigma}, \tilde{\Sigma}(\theta))$', 'Interpreter', 'latex');
+scatter(thetaNorms, gapValues, 150, 'filled');
+xlabel('$||\theta - \mu_{\theta}||$', 'Interpreter', 'latex');
+ylabel('$\mathrm{Gap}(\theta)$', 'Interpreter', 'latex');
 grid on;
 a = findobj(gcf, 'type', 'axes');
 h = findobj(gcf, 'type', 'line');
@@ -155,11 +136,11 @@ set(gca,'fontweight','bold');
 figure;
 plot(gammaValues, upperBoundProbability, 'LineWidth', 2);
 xlabel('$\gamma$', 'Interpreter', 'latex');
-ylabel('$P(||T_{zw}(\tilde{\Sigma}(\theta), C)||_{\mathcal{H}_{\infty}} \leq \gamma)$', 'Interpreter', 'latex');
+ylabel('$P(||T_{zw}(\tilde{\Sigma}(\theta), \bar{C})||_{\mathcal{H}_{\infty}} \leq \gamma)$', 'Interpreter', 'latex');
 grid on;
 a = findobj(gcf, 'type', 'axes');
 h = findobj(gcf, 'type', 'line');
 set(h, 'linewidth', 5);
 set(a, 'linewidth', 5);
-set(a, 'FontSize', 70);
+set(a, 'FontSize', 50);
 set(gca,'fontweight','bold');
