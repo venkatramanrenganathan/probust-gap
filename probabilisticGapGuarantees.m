@@ -31,18 +31,33 @@ nominalSystem = tf(ss(A1, B1, C1, D1));
 
 % Set the desired closed loop pole location
 desiredPoleLocation = -2;
+
 % Place the pole at desiredPoleLocation & get nominal controller gain
-barC = place(A1, B1, desiredPoleLocation);
+controllerGain = place(A1, B1, desiredPoleLocation);
+
+% Use negative feedback
+nominalController = -controllerGain;
+
+% Get the state space and the transfer function
+nominalControllerStateSpace = ss(nominalController);
+
+% Compute the performance measure for nominal plant and controller
+bPC_Nominal = 0.8;
+
+
 
 %% Parameters for Simulation
-% Set the performance measure for nominal plant and controller
-bPC_Nominal = 0.8;
+
+
 % Set the number of samples of \theta for Monte-Carlo simulation
 numSamples = 1000;
+
 % Mean of \theta
 muTheta = [0.1; -0.05];
+
 % Set the standard deviation for \theta parameter
 sigmaTheta = 0.5;
+
 % Sample \theta from Gaussian distribution
 thetaSamples = mvnrnd(muTheta', sigmaTheta^(2)*eye(2), numSamples);
 
@@ -64,13 +79,16 @@ for i = 1:numSamples
     
     % Compute gap with Matlab inbuilt command
     [gapValues(i), ~] = gapmetric(nominalSystem, perturbedSystem);
+    
     % Compute the norm of theta variations from mean
     thetaNorms(i) = norm(theta - muTheta);
     
     % Form the closed loop matrix A - BK
-    Acl = A2 - B1 * barC;
+    Acl = A2 - B1 * nominalController;
+    
     % Form the closed loop state space
     closedLoopSystem = ss(Acl, 1, 1, 0);
+    
     % Compute H-infinity norm of Closed-loop TF
     hInftyNormValues(i) = hinfnorm(closedLoopSystem);
 end
@@ -83,31 +101,43 @@ hInftyNormValues = hInftyNormValues(1:length(gapValues));
 % Computing Bound on Probability of H-infinity satisfaction
 % Set the gamma range
 gammaValues = linspace(1.01, 10.0, 100);
+
 % Estimate Lipschitz constant of gap as Gap/theta_norm
 L_gap = mean(gapValues ./ thetaNorms);
+
 % Placeholder for Upper bound of Prob(\norm{T_zw}_{\infty} \leq \gamma)
 upperBoundProbability = zeros(size(gammaValues));
+
 % For every gamma, find the upperBoundProbability
 for i = 1:length(gammaValues)
+    % Get gammaBar
     gammaBar = (gammaValues(i) - bPC_Nominal) / (1 + gammaValues(i));
+    
     % Find Upper bound for Prob(\norm{T_zw}_{\infty} \leq \gamma)
     upperBoundProbability(i) = 1 - exp(-(gammaBar^2)/(2*L_gap^2*sigmaTheta^2));
 end
 
 %% Print the Summary of Results
 fprintf('--- Printing the Summary of Results ---\n');
+
+% Report the Lipschitz constant of gap
 fprintf('Estimated L_gap: %.4f\n', L_gap);
+
 % Compute & report the expected gap
 expectedGap = mean(gapValues);
 fprintf('E[Gap]: %.4f\n', expectedGap);
+
 % Compute & report the upper bound for expected gap
 expectedGapUpperBound = L_gap * mean(thetaNorms);
 fprintf('L_gap * E[theta_norms]: %.4f\n', expectedGapUpperBound);
+
+% Check if expectedGap exceeds the upperBound
 if(expectedGap <= expectedGapUpperBound)
     fprintf('E[Gap] <= L_gap*E[theta_norms] \n');
 else
     fprintf('E[Gap] > L_gap*E[theta_norms] \n');
 end
+
 % Compute & report the expected Hinf norm of T_zw transfer function
 expectedTzwHinfNorm = mean(hInftyNormValues);
 fprintf('E[||T_{zw}(P2, C)||_inf]: %.4f\n', expectedTzwHinfNorm);

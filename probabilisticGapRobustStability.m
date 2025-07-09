@@ -30,86 +30,91 @@ C = 1;
 D = 0;
 
 % Form transfer function from state space of nominal model
-P_nom = tf(ss(A, B, C, D));
+nominalSystem = tf(ss(A, B, C, D));
 
-% Simulation parameters
-p = 1;                          % One-dimensional θ
-N = 1000;                       % Number of samples
-mu_theta = 0.0;                 % Mean of θ
-sigma_theta = 0.25;             % Standard Deviation of θ
+% Set the parameters for simulation
+numSamples = 1000;              % Number of θ samples
+meanTheta = 0.0;                % Mean of θ
+standardDeviationTheta = 0.25;  % Standard Deviation of θ
 
 % Place holder for storing gap and theta values
-gap_values = zeros(1, N);
-theta_norms = zeros(1, N);
+gapValues = zeros(1, numSamples);
+thetaNorms = zeros(1, numSamples);
 
-% Compute gap for all N samples
-for i = 1:N
+% Set the stability flag to false
+stableFlag = 0;
 
-    % Sample a θ from Gaussian distribution
-    theta = normrnd(mu_theta, sigma_theta);
+% Compute gap for all numSamples of theta
+for i = 1:numSamples
 
-    % Perturb the A matrix (ensure stability)
-    A_pert = A + theta;        % Small perturbation around stable pole
-    if A_pert >= 0             % skip unstable systems
-        gap_values(i) = NaN;
-        continue;
+    % Loop until you set the stable flag = 1 (find a stable system)
+    while(stableFlag == 0)
+
+        % Sample θ from Gaussian distribution
+        theta = normrnd(meanTheta, standardDeviationTheta);
+    
+        % Perturb the A matrix - Small perturbation around stable pole
+        A_perturb = A + theta;        
+        
+        % If perturbed system is stable, exit the while loop
+        if A_perturb < 0             
+            stableFlag = 1;
+            break;
+        end
     end
 
     % Form the tranfer function from state space of the perturbed model
-    P_theta = tf(ss(A_pert, B, C, D));
+    perturbedSystem = tf(ss(A_perturb, B, C, D));
 
-    try
-        % Compute gap with Matlab inbuilt gapmetric command
-        [gap_values(i),~] = gapmetric(P_nom, P_theta);
-    catch
-        gap_values(i) = NaN;
-    end
+    % Compute gap with Matlab inbuilt gapmetric command
+    [gapValues(i),~] = gapmetric(nominalSystem, perturbedSystem);
+    
     % Store the theta values
-    theta_norms(i) = norm(theta);
+    thetaNorms(i) = norm(theta);
 
 end
 
-% Remove NaNs
-gap_values = gap_values(~isnan(gap_values));
-N_valid = length(gap_values);
-theta_norms = theta_norms(1:N_valid);
 
+%% Compute the Empirical and theoretical stats
 
-% ------------------------
-% Empirical and theoretical stats
-% ------------------------
-expected_gap = mean(gap_values);
+% Find the expected gapvalue
+expectedGap = mean(gapValues);
+
 % Estimate Lipschitz constant of gap as Gap/theta_norm
-L_gap_est = mean(gap_values ./ theta_norms);
+gapLipschitzConstant = mean(gapValues ./ thetaNorms);
 
-% sub-Gaussian variance prixy of Gap(θ)
-sigma_gap = L_gap_est * sigma_theta;
-% Controller stabilizing nominal system (already stable)
-C = 1; 
+% sub-Gaussian variance proxy of Gap(θ)
+sigmaGap = gapLipschitzConstant * standardDeviationTheta;
+
+% Controller stabilizing nominal system (which is already stable)
+nominalController = 1; 
+
 % Form Sensitivity & Complementary sensitivity transfer functions
-sen = 1/(1+P_nom*C);
-b_PC = norm(1-sen,inf);
+sensitivityTransferFunction = 1/(1 + nominalSystem*nominalController);
+
+% Form the b_pc
+b_PC = norm(1-sensitivityTransferFunction,inf);
 
 % Compute the tolerance
-epsilon = b_PC - expected_gap;
-% Compute Empirical P[Gap < b_PC]
-empiricalSatisfactionProbability = mean(gap_values < b_PC);
-% Compute Theoretical Lower Bound on P[Gap < b_PC]
-theoreticalLowerBound = 1 - exp(-epsilon^2 / (2 * sigma_gap^2));
+epsilonTolerance = b_PC - expectedGap;
 
-% Display summary
+% Compute Empirical probability of safety P[Gap < b_PC]
+empiricalRobustStabilityProbability = mean(gapValues < b_PC);
+
+% Compute Theoretical Lower Bound on probability of safety P[Gap < b_PC]
+lowerBoundRobustStabilityProbability = 1 - exp(-epsilonTolerance^2 / (2 * sigmaGap^2));
+
+%% Display summary
 fprintf('\n--- Summary of Simulation Results ---\n');
-fprintf('Valid Samples:                    %d\n', N_valid);
-fprintf('Expected[Gap]:                    %.4f\n', expected_gap);
+fprintf('Expected[Gap]:                    %.4f\n', expectedGap);
 fprintf('Robust Stability Margin b_PC:     %.4f\n', b_PC);
-fprintf('Empirical P[Gap < b_PC]:          %.4f\n', empiricalSatisfactionProbability);
-fprintf('Theoretical Lower Bound:          %.4f\n', theoreticalLowerBound);
+fprintf('Empirical Probability of Robust Stability P[Gap < b_PC]: %.4f\n', empiricalRobustStabilityProbability);
+fprintf('Lower Bound on Probability of Robust Stability: %.4f\n', lowerBoundRobustStabilityProbability);
 
-% ------------------------
-%% Plot
-% ------------------------
+
+%% Plot the results
 figure;
-histogram(gap_values, 40, 'Normalization', 'probability', 'FaceAlpha', 0.6);
+histogram(gapValues, 40, 'Normalization', 'probability', 'FaceAlpha', 0.6);
 hold on;
 xline(b_PC, 'r--', 'LineWidth', 5);
 xlabel('Gap($\theta$)');
