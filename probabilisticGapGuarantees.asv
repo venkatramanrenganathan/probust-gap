@@ -78,17 +78,23 @@ for i = 1:numSamples
     % Compute the norm of theta variations from mean
     thetaNorms(i) = norm(theta - muTheta);
     
+    % Form the closed loop matrix A - BK
+    Acl = A2 - B1 * nominalController;
+    
     % Form the closed loop state space
-    closedLoopSystem = feedback(series(nominalController, perturbedSystem), 1);   
+    closedLoopSystem = ss(Acl, 1, 1, 0);
+
+    L = series(C_tf, P);             % open-loop transfer function
+    CL_tf = feedback(L, 1);   
     
     % Compute H-infinity norm of Closed-loop TF
     hInftyNormValues(i) = hinfnorm(closedLoopSystem);
 end
 
-% Remove NaN & Infinity entries
+% Remove NaN entries
 gapValues = gapValues(~isnan(gapValues));
 thetaNorms = thetaNorms(1:length(gapValues));
-hInftyNormValues = hInftyNormValues(~isinf(hInftyNormValues));
+hInftyNormValues = hInftyNormValues(1:length(gapValues));
 
 % Computing Bound on Probability of H-infinity satisfaction
 % Set the gamma range

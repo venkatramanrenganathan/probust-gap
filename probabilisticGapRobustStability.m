@@ -1,8 +1,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% This code simulates gap metric between state-space systems under 
-% random parameter θ with simpler nominal model
+% This code simulates robust stability of gap metric between state-space systems under 
+% random parameter θ
 %
 % Copyrights Authors: Venkatraman Renganathan 
 %                     Cranfield University, United Kingdom.
