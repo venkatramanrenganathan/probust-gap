@@ -3,12 +3,14 @@
 %
 % This code simulates Probabilistic Robust Control Using Gap Metric
 %
-% Copyrights Authors: Venkatraman Renganathan 
-%                     Cranfield University, United Kingdom.
+% Copyrights @ 2025
+% 
+% Authors: Venkatraman Renganathan 
+%          Cranfield University, United Kingdom.
 %
-% Emails: v.renganathan@cranfield.ac.uk
+% Email: v.renganathan@cranfield.ac.uk
 %
-% Date last updated: 9 July, 2025.
+% Date last updated: 10 July, 2025.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
