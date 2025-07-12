@@ -8,7 +8,7 @@
 %
 % Emails: v.renganathan@cranfield.ac.uk
 %
-% Date last updated: 9 July, 2025.
+% Date last updated: 12 July, 2025.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -26,58 +26,54 @@ addpath(genpath('src'));
 % Nominal system P
 s = tf('s');
 P = 1/(s+1);
-C = 1; % Controller stabilizing nominal system
-
-% Form the sensitivity and complementary sensitivity functions
-sentivity = 1/(1+P*C);
-CompSenNorm = norm(1-sentivity,inf);
+C = 0.5*(s+2)/(s+3); %0.5; % Controller stabilizing nominal system
 
 % Gap robustness margin
-b_PC = norm(1-sentivity,inf); % assumed known from design 0.6
+b_PC = compute_bpc(P, C);
 
 % Simulation Parameters
-d = 2;                % Dimension of theta parameter
-N = 1000;             % Number of scenarios
+N = 10000;            % Number of scenarios
 beta = 0.01;          % confidence level
 epsilon = 0.05;       % violation probability
-sigmaTheta = 0.1;     % Standard deviation of theta
-muTheta = zeros(d,1); % Mean of theta
+muTheta = 0;          % Mean of theta
+sigmaTheta = 0.25;    % Standard deviation of theta
 
 % Generate N scenarios of theta
-thetaValues = mvnrnd(muTheta, sigmaTheta^2*eye(d), N);
+thetaValues = normrnd(muTheta, sigmaTheta, [1, N]);
+
 % Place holder to store gap values
 gapValues = zeros(N,1);
 
 % Run Monte-carlo simulation with N scenarios
 for i = 1:N
-    % Get the ith sample
-    theta = thetaValues(i,:)';
-    % Generate the pole perturbation
-    deltaPole = 0.5*sum(theta);
+    % Generate the pole perturbation as theta
+    deltaPole = thetaValues(i);
+    
     % Generate the random perturbed system
     P_theta = 1/(s+1+deltaPole);
+    
     % Compare with Matlab inbuilt gapmetric command
     [gapValues(i), ~] = gapmetric(P, P_theta);
 end
 
 % Scenario-based gap threshold
-alphaHat = max(gapValues);
+alphaHatN = max(gapValues);
 
 % Theoretical sample size check (Calafiore & Dabbene)
-N_required = ceil(log(1/beta)/log(1/(1-epsilon)));
-fprintf('Scenarios taken: %d, Required: %d\n', N, N_required);
+requiredSamples = ceil(log(1/beta)/log(1/(1-epsilon)));
+fprintf('Scenarios taken: %d, Required: %d\n', N, requiredSamples);
 
 % Probabilistic stabilization check
-if alphaHat < b_PC
-    fprintf('Probabilistic robustness guarantee met: alpha_hat=%.4f < b_PC=%.4f\n', alphaHat, b_PC);
+if alphaHatN < b_PC
+    fprintf('Probabilistic robustness guarantee met: alpha_hat=%.4f < b_PC=%.4f\n', alphaHatN, b_PC);
 else
-    fprintf('Probabilistic robustness guarantee NOT met: alpha_hat=%.4f >= b_PC=%.4f\n', alphaHat, b_PC);
+    fprintf('Probabilistic robustness guarantee NOT met: alpha_hat=%.4f >= b_PC=%.4f\n', alphaHatN, b_PC);
 end
 
 %% Plot scenario gap values
 figure;
 histogram(gapValues, 30,'Normalization','probability');
-xline(alphaHat,'r','LineWidth',5);
+xline(alphaHatN,'r','LineWidth',5);
 xline(b_PC,'k','LineWidth',5);
 xlabel('$\mathrm{Gap}(\theta)$');
 ylabel('Probability Density');

@@ -11,7 +11,7 @@
 %
 % Email: v.renganathan@cranfield.ac.uk
 %
-% Date last updated: 10 July, 2025.
+% Date last updated: 12 July, 2025.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -35,13 +35,13 @@ D = 0;
 nominalSystem = tf(ss(A, B, C, D));
 
 % Set the parameters for simulation
-p = 2;                          % Dimension of θ 
+thetaDimension = 2;             % Dimension of θ 
 numSamples = 10000;             % Number of θ samples
 meanTheta = [0.50 -0.25];       % Mean of θ
 standardDeviationTheta = 0.25;  % Standard Deviation of θ
 
 % Set covariance of theta
-covarianceTheta = standardDeviationTheta^(2)*eye(p); 
+covarianceTheta = standardDeviationTheta^(2)*eye(thetaDimension); 
 
 % Place holder for storing gap and theta values
 gapValues = zeros(1, numSamples);

@@ -10,7 +10,7 @@
 %
 % Email: v.renganathan@cranfield.ac.uk
 %
-% Date last updated: 10 July, 2025.
+% Date last updated: 12 July, 2025.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -45,18 +45,23 @@ bPC_Nominal = compute_bpc(nominalSystem, nominalControllerStateSpace); % 0.8;
 
 %% Parameters for Simulation
 
-
 % Set the number of samples of \theta for Monte-Carlo simulation
-numSamples = 1000;
+numSamples = 10000;
 
 % Mean of \theta
-muTheta = [0.1; -0.05];
+meanTheta = [0.1; -0.05];
+
+% Infer the dimension of \theta parameter
+thetaDimension = size(meanTheta, 1);
 
 % Set the standard deviation for \theta parameter
-sigmaTheta = 0.5;
+standardDeviationTheta = 0.5;
+
+% Form the covariance matrix of \theta parameter
+covarianceTheta = standardDeviationTheta^(2)*eye(thetaDimension);
 
 % Sample \theta from Gaussian distribution
-thetaSamples = mvnrnd(muTheta', sigmaTheta^(2)*eye(2), numSamples);
+thetaSamples = mvnrnd(meanTheta', covarianceTheta, numSamples);
 
 % Place holders for storing computed values
 gapValues = zeros(numSamples,1);
@@ -70,15 +75,15 @@ for i = 1:numSamples
     theta = thetaSamples(i,:)';
 
     % Form ith Perturbed System \tilde{\Sigma}(theta) using \theta
-    A2 = -1 + theta(1);
-    C2 = 1 + theta(2);
+    A2 = A1 + theta(1);
+    C2 = C1 + theta(2);
     perturbedSystem = tf(ss(A2, B1, C2, D1));
     
     % Compute gap with Matlab inbuilt command
     [gapValues(i), ~] = gapmetric(nominalSystem, perturbedSystem);
     
     % Compute the norm of theta variations from mean
-    thetaNorms(i) = norm(theta - muTheta);
+    thetaNorms(i) = norm(theta - meanTheta);
     
     % Form the closed loop state space
     closedLoopSystem = feedback(series(nominalController, perturbedSystem), 1);   
@@ -97,7 +102,7 @@ hInftyNormValues = hInftyNormValues(~isinf(hInftyNormValues));
 gammaValues = linspace(1.01, 10.0, 100);
 
 % Estimate Lipschitz constant of gap as Gap/theta_norm
-L_gap = mean(gapValues ./ thetaNorms);
+gapLispchitz = mean(gapValues ./ thetaNorms);
 
 % Placeholder for Upper bound of Prob(\norm{T_zw}_{\infty} \leq \gamma)
 upperBoundProbability = zeros(size(gammaValues));
@@ -108,21 +113,21 @@ for i = 1:length(gammaValues)
     gammaBar = (gammaValues(i) - bPC_Nominal) / (1 + gammaValues(i));
     
     % Find Upper bound for Prob(\norm{T_zw}_{\infty} \leq \gamma)
-    upperBoundProbability(i) = 1 - exp(-(gammaBar^2)/(2*L_gap^2*sigmaTheta^2));
+    upperBoundProbability(i) = 1 - exp(-(gammaBar^2)/(2*gapLispchitz^2*standardDeviationTheta^2));
 end
 
 %% Print the Summary of Results
 fprintf('--- Printing the Summary of Results ---\n');
 
 % Report the Lipschitz constant of gap
-fprintf('Estimated L_gap: %.4f\n', L_gap);
+fprintf('Estimated L_gap: %.4f\n', gapLispchitz);
 
 % Compute & report the expected gap
 expectedGap = mean(gapValues);
 fprintf('E[Gap]: %.4f\n', expectedGap);
 
 % Compute & report the upper bound for expected gap
-expectedGapUpperBound = L_gap * mean(thetaNorms);
+expectedGapUpperBound = gapLispchitz * mean(thetaNorms);
 fprintf('L_gap * E[theta_norms]: %.4f\n', expectedGapUpperBound);
 
 % Check if expectedGap exceeds the upperBound
@@ -137,7 +142,7 @@ expectedTzwHinfNorm = mean(hInftyNormValues);
 fprintf('E[||T_{zw}(P2, C)||_inf]: %.4f\n', expectedTzwHinfNorm);
 
 % Compute & report the upper bound on expected Hinf norm of T_zw transfer function
-CinvGap = (1/(1-expectedGapUpperBound))*(1+expectedGapUpperBound + 8 * sigmaTheta^(2) * L_gap^(2) * exp(-(1-expectedGapUpperBound)^(2)/(8 * sigmaTheta^(2) * L_gap^(2) )));
+CinvGap = (1/(1-expectedGapUpperBound))*(1+expectedGapUpperBound + 8 * standardDeviationTheta^(2) * gapLispchitz^(2) * exp(-(1-expectedGapUpperBound)^(2)/(8 * standardDeviationTheta^(2) * gapLispchitz^(2) )));
 expectedTzwHinfNormUpperBound = (bPC_Nominal + 1) * CinvGap;
 fprintf('Upper Bound on E[||T_{zw}(P2, C)||_inf]: %.4f\n', expectedTzwHinfNormUpperBound);
 
@@ -162,6 +167,8 @@ plot(gammaValues, upperBoundProbability, 'LineWidth', 2);
 xlabel('$\gamma$', 'Interpreter', 'latex');
 ylabel('$P(||T_{zw}(\tilde{\Sigma}(\theta), \bar{C})||_{\mathcal{H}_{\infty}} \leq \gamma)$', 'Interpreter', 'latex');
 grid on;
+xticks(1:1:10);
+xlim([1, 10]);
 a = findobj(gcf, 'type', 'axes');
 h = findobj(gcf, 'type', 'line');
 set(h, 'linewidth', 5);
