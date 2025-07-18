@@ -130,21 +130,18 @@ fprintf('E[Gap]: %.4f\n', expectedGap);
 expectedGapUpperBound = gapLispchitz * mean(thetaNorms);
 fprintf('L_gap * E[theta_norms]: %.4f\n', expectedGapUpperBound);
 
-% Compute gap between nominal and mean perturbed system
+% Upper bound for E[gap] from Corollary 6.1
 A_mean = A1 + meanTheta(1);
 C_mean = C1 + meanTheta(2);
-meanPerturbedSystem = tf(ss(A_mean, B1, C_mean, D1));
-meanThetaGap = gapmetric(nominalSystem, meanPerturbedSystem);
-
-% Upper bound for E[gap] from Corollary 6.1
+perturbedSystem = tf(ss(A2, B1, C2, D1));
+meanThetaGap = gapmetric(nominalSystem, perturbedSystem);
 CGap = meanThetaGap + gapLispchitz*sqrt(trace(covarianceTheta));
-fprintf('CGap: %.4f\n', CGap);
 
 % Check if expectedGap exceeds the upperBound
-if(expectedGap <= CGap)
-    fprintf('E[Gap] <= CGap. Verifies Corollary 6.1 \n');
+if(expectedGap <= expectedGapUpperBound)
+    fprintf('E[Gap] <= L_gap*E[theta_norms] \n');
 else
-    fprintf('E[Gap] > CGap. Contradicts Corollary 6.1 \n');
+    fprintf('E[Gap] > L_gap*E[theta_norms] \n');
 end
 
 % Compute & report the expected Hinf norm of T_zw transfer function
@@ -152,7 +149,7 @@ expectedTzwHinfNorm = mean(hInftyNormValues);
 fprintf('E[||T_{zw}(P2, C)||_inf]: %.4f\n', expectedTzwHinfNorm);
 
 % Compute & report the upper bound on expected Hinf norm of T_zw transfer function
-CinvGap = (1/(1-CGap))*(1+CGap + 8 * standardDeviationTheta^(2) * gapLispchitz^(2) * exp(-(1-CGap)^(2)/(8 * standardDeviationTheta^(2) * gapLispchitz^(2) )));
+CinvGap = (1/(1-expectedGapUpperBound))*(1+expectedGapUpperBound + 8 * standardDeviationTheta^(2) * gapLispchitz^(2) * exp(-(1-expectedGapUpperBound)^(2)/(8 * standardDeviationTheta^(2) * gapLispchitz^(2) )));
 expectedTzwHinfNormUpperBound = (bPC_Nominal + 1) * CinvGap;
 fprintf('Upper Bound on E[||T_{zw}(P2, C)||_inf]: %.4f\n', expectedTzwHinfNormUpperBound);
 
